@@ -36,7 +36,7 @@ class TelegramBot:
 
 
 if __name__ == "__main__":
-    token = "6464780082:AAGjSMHcXK2sOuzuYBjBmjWVAdU3DqM5B0c"
-    chat_id = "1829233245"
+    token = "6464788888:AAGjSMHcXK2sOuzuYBjBmjWVAdUAAAABBBB"
+    chat_id = "1829123456"
     content = "Hello, World!"
     asyncio.run(TelegramBot(token, chat_id).send_text_msg(content))
