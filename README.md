@@ -2,56 +2,53 @@
   <br>okx_spot_future_arbitrage<br>
 </h1>
 
-[中文](README_CN.md) | English
+中文 | [English](README.md) 
 
-# Introduction
-Spot-Future Arbitrage: Spot-future arbitrage refers to the process of buying the lower-priced asset and selling the higher-priced asset when there is a significant price difference between futures and spot markets for the same cryptocurrency. Profits are realized by closing positions when the price gap narrows.
 
-The market uses OKX spot leverage and coin-margined contracts
+# 介绍
+期现套利： 期现套利是指当同币种的期货和现货存在较大价差时，通过买入低价方、卖出高价方，当两者的价差缩小时进行平仓，即可收获价差缩小部分利润  
 
-    Spot leverage orders
-    Coin-margined delivery contracts for hedging
+市场采用 OKX 现货杠杆和币本位合约
+* 现货杠杆下单
+* 币本位交割合约对冲
 
-Annual yield = (future_price - spot_price) / spot_price / future_expire_days * 365 * 100%
+年化收益率 = (future_price - spot_price) / spot_price / future_expire_days * 365 * 100%  
 
-Yield reference: https://www.okx.com/zh-hans/markets/arbitrage/spread-usd
+收益率参考 https://www.okx.com/zh-hans/markets/arbitrage/spread-usd
 
-# Before You Start
+# 说在前面
 1. DYOR (DO Your Own Research)
-2. Before formally using the strategy, it is recommended to test it in a demo account first to confirm the stability and yield of the strategy
+2. 在正式使用策略前，建议先在模拟盘中进行测试，确认策略的稳定性和收益率
 
 
-# Preparation：
-* Change the account to cross-margin (Upgrade to cross-margin mode requires the equity in the trading account to be not less than 10,000.00 USD)
+# 准备工作：
+* 账户改为跨币种保证金 (升级至跨币种保证金模式，要求交易账户中权益不低于 10,000.00 USD)
+
+# 策略核心逻辑
+1. 策略模块中通过ws实时获取当前仓位和资金余额
+2. 获取数据处理模块获取实时收益率排名
+3. 开仓逻辑：
+   1. 按序处理收益率排名中的交易对
+   2. 判断数据是否超时（大于制定时间，比如10s)
+      1. 超时则跳过
+   3. 检查当前是否允许开仓
+      1. 策略是否开启
+      2. 现货USDT是否充足（balance > per_order_usd)
+      3. 仓位是否达到上限
+      4. 收益率是否达标
+   4. 两腿下单
+      1. 简单逻辑均为超价限价单，比如spot，以asks[5]为买价，future 以 bids[5] 为卖价
+      2. 复杂逻辑：
+       1. 现货maker，等ws成交消息过来后再下单合约taker，价格同上。风险点在于价格滑动过快
+          3. 精度处理
+       1. 现货和合约的价格精度，根据市场数据来处理
+       2. 现货size精度需要根据市场数据来处理
+4. 平仓逻辑
+   1. 遍历当前持仓，获取对应的收益率，收益率低于平仓阈值的进行平仓处理
+   2. 平仓操作亦是两腿下单，同时操作。
 
 
-# Core Strategy Logic
-
-    The strategy module obtains real-time positions and fund balances through WebSocket
-    The data processing module obtains real-time yield rankings
-    Opening position logic:
-        Process trading pairs in the yield ranking sequentially
-        Check if the data is timed out (greater than a specified time, e.g., 10s)
-            Skip if timed out
-        Check if opening a position is currently allowed
-            Is the strategy enabled
-            Is spot USDT sufficient (balance > per_order_usd)
-            Has the position limit been reached
-            Does the yield meet the criteria
-        Two-leg order placement
-            Simple logic uses limit orders above market price, e.g., spot buys at asks[5], future sells at bids[5]
-            Complex logic:
-                Spot maker, place contract taker order after receiving WebSocket trade message. Price same as above. Risk point is rapid price movement
-                Precision handling
-                    Handle spot and contract price precision based on market data
-                    Handle spot size precision based on market data
-    Closing position logic
-        Iterate through current positions, obtain corresponding yields, close positions with yields below the closing threshold
-        Closing operation also involves two-leg order placement, executed simultaneously
-
-
-
-# Project Deployment
+# 项目部署
 
 ###  dependent components:
   - redis = 6.x     (e.g. 6.2.6)
@@ -73,51 +70,49 @@ pip install -r requirements-dev.txt
 
 
 ####  initial default data
-* Create admin user
+* 创建管理后台用户
 ```
 python manage.py createsuperuser --role=admin
 ```
-* Initialize database tables
+* 初始化数据库表格
 ```
 python manage.py migrate
 ```
 
-#### Configure account
-
-Visit http://localhost:8000/admin/strategy/account/add/ to add an account
-Note: The Api Secret field needs to use encrypted text, use tools/aes_encrypt.py for encryption
+####  配置账户
+访问 http://localhost:8000/admin/strategy/account/add/ 添加账户  
+注意Api Secret字段需要使用加密后的密文，使用tools/aes_encrypt.py进行加密    
 
 ![img.png](images/img.png)
 
-Add strategy configuration  
+添加策略配置  
 
 ![img_1.png](images/img_1.png)
-####  Start service
-* Configure environment variables
-TEST environment:
+####  服务启动
+* 配置环境变量 
+测试环境（模拟盘）
 ```
 export PROFILE=dev
 ```
-Production environment
+正式环境
 ```
 export PROFILE=production
 ```
-* Admin panel (account management, strategy configuration, order management)
-
+* 管理后台（账户管理、策略配置、订单管理）
 ```
 python manage.py runserver
 ```
 
-* Market data module
+* 市场数据模块
 ```
 python manage.py start_okx_future_spot_spider
 ```
-* Strategy module
+* 策略模块
 ```
 python manage.py start_strategy --strategy_name test --account_name okx_test_account
 ```
 
-Observe order execution status
+观察订单成交情况
 ![order.png](images/order.png)
 
 ### FAQ
